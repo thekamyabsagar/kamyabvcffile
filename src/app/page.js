@@ -1,10 +1,13 @@
 "use client";
 import { useState } from "react";
+import { useSession, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
   const [files, setFiles] = useState(null);
   const [outputUrl, setOutputUrl] = useState(null);
   const [loading, setLoading] = useState(false);
+  const { data: session, status } = useSession();
 
   const handleUpload = async () => {
     if (!files || files.length === 0) {
@@ -42,8 +45,16 @@ export default function Home() {
   };
 
   return (
-    <main className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-100 p-6">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center border border-gray-100">
+    <main className="flex flex-col items-center min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-100 p-6 relative">
+      {/* Logout button */}
+      <button
+        onClick={() => signOut()}
+        className="absolute top-4 right-4 px-4 py-2 bg-white text-gray-700 rounded-lg shadow-md hover:bg-gray-100 transition-all duration-200 text-sm font-medium border border-gray-200"
+      >
+        Logout
+      </button>
+
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center border border-gray-100 mt-12">
         <h1 className="text-3xl font-bold mb-6 text-gray-800 tracking-tight text-center drop-shadow-sm">Bulk Photo to VCF Converter</h1>
 
         {/* Custom file input */}
