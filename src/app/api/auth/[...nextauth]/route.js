@@ -4,6 +4,13 @@ import GoogleProvider from "next-auth/providers/google";
 import { MongoClient } from "mongodb";
 import { compare } from "bcryptjs";
 
+// Function to generate a random secret if none is provided
+const generateSecret = () => {
+  if (process.env.NEXTAUTH_SECRET) return process.env.NEXTAUTH_SECRET;
+  const randomBytes = require('crypto').randomBytes(32);
+  return randomBytes.toString('base64');
+};
+
 export const authOptions = {
   providers: [
     CredentialsProvider({
@@ -45,8 +52,18 @@ export const authOptions = {
   },
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: generateSecret(),
+  callbacks: {
+    async redirect({ url, baseUrl }) {
+      // Allows relative callback URLs
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      // Allows callback URLs on the same origin
+      else if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
+    },
+  },
 };
 
 const handler = NextAuth(authOptions);

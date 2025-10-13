@@ -29,6 +29,7 @@ export default function AuthCard() {
         redirect: false,
         email,
         password,
+        callbackUrl: "/"
       });
       if (result.error) {
         setError(result.error);
@@ -59,8 +60,10 @@ export default function AuthCard() {
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
-    await signIn("google", { callbackUrl: "/" });
-    setIsLoading(false);
+    await signIn("google", { 
+      callbackUrl: "/",
+      redirect: true
+    });
   };
 
   // Show loading state while checking session
