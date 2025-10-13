@@ -37,7 +37,15 @@ export const authOptions = {
           }
 
           await client.close();
-          return { id: user._id.toString(), email: user.email };
+          return { 
+            id: user._id.toString(), 
+            email: user.email,
+            username: user.username,
+            country: user.country,
+            phoneNumber: user.phoneNumber,
+            companyName: user.companyName,
+            isProfileComplete: user.isProfileComplete || true
+          };
         } catch (error) {
           console.error("Auth error:", error);
           throw error;
@@ -58,12 +66,81 @@ export const authOptions = {
   },
   secret: secret,
   callbacks: {
+    async signIn({ user, account, profile }) {
+      if (account.provider === "google") {
+        try {
+          const client = await MongoClient.connect(process.env.MONGODB_URI);
+          const users = client.db().collection("users");
+          
+          const existingUser = await users.findOne({ email: user.email });
+          
+          if (!existingUser) {
+            // Create user record for Google OAuth user without profile completion
+            await users.insertOne({
+              email: user.email,
+              name: user.name,
+              image: user.image,
+              provider: "google",
+              isProfileComplete: false,
+              createdAt: new Date(),
+            });
+          }
+          
+          await client.close();
+        } catch (error) {
+          console.error("Error handling Google sign in:", error);
+        }
+      }
+      return true;
+    },
     async redirect({ url, baseUrl }) {
+      // Check if user needs to complete profile after Google OAuth
+      if (url === baseUrl || url === `${baseUrl}/`) {
+        try {
+          const client = await MongoClient.connect(process.env.MONGODB_URI);
+          const users = client.db().collection("users");
+          
+          // This is a bit tricky - we need the user's email, but it's not available in redirect callback
+          // We'll handle this in the session callback instead
+          await client.close();
+        } catch (error) {
+          console.error("Error in redirect callback:", error);
+        }
+      }
+      
       // Allows relative callback URLs
       if (url.startsWith("/")) return `${baseUrl}${url}`;
       // Allows callback URLs on the same origin
       else if (new URL(url).origin === baseUrl) return url;
       return baseUrl;
+    },
+    async session({ session, token }) {
+      if (session?.user?.email && token.provider !== "credentials") {
+        try {
+          const client = await MongoClient.connect(process.env.MONGODB_URI);
+          const users = client.db().collection("users");
+          
+          const user = await users.findOne({ email: session.user.email });
+          if (user) {
+            session.user.isProfileComplete = user.isProfileComplete || false;
+            session.user.username = user.username;
+            session.user.country = user.country;
+            session.user.phoneNumber = user.phoneNumber;
+            session.user.companyName = user.companyName;
+          }
+          
+          await client.close();
+        } catch (error) {
+          console.error("Error in session callback:", error);
+        }
+      }
+      return session;
+    },
+    async jwt({ token, account, user }) {
+      if (account) {
+        token.provider = account.provider;
+      }
+      return token;
     },
   },
 };

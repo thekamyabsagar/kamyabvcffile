@@ -7,6 +7,10 @@ export default function AuthCard() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [country, setCountry] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [companyName, setCompanyName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const { data: session, status } = useSession();
@@ -42,7 +46,7 @@ export default function AuthCard() {
         const response = await fetch("/api/auth/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email, password, username, country, phoneNumber, companyName }),
         });
         const data = await response.json();
         if (response.ok) {
@@ -89,7 +93,7 @@ export default function AuthCard() {
           <div className="mb-4 text-center text-red-500 font-semibold">{error}</div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="email" className="sr-only">
               Email address
@@ -107,6 +111,27 @@ export default function AuthCard() {
               disabled={isLoading}
             />
           </div>
+          
+          {!isLogin && (
+            <div>
+              <label htmlFor="username" className="sr-only">
+                Username
+              </label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                autoComplete="username"
+                required
+                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-lg transition duration-200"
+                placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+          )}
+          
           <div>
             <label htmlFor="password" className="sr-only">
               Password
@@ -124,6 +149,64 @@ export default function AuthCard() {
               disabled={isLoading}
             />
           </div>
+          
+          {!isLogin && (
+            <>
+              <div>
+                <label htmlFor="country" className="sr-only">
+                  Country
+                </label>
+                <input
+                  id="country"
+                  name="country"
+                  type="text"
+                  autoComplete="country"
+                  required
+                  className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-lg transition duration-200"
+                  placeholder="Country"
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  disabled={isLoading}
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="phoneNumber" className="sr-only">
+                  Phone Number
+                </label>
+                <input
+                  id="phoneNumber"
+                  name="phoneNumber"
+                  type="tel"
+                  autoComplete="tel"
+                  required
+                  className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-lg transition duration-200"
+                  placeholder="Phone Number"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  disabled={isLoading}
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="companyName" className="sr-only">
+                  Company Name
+                </label>
+                <input
+                  id="companyName"
+                  name="companyName"
+                  type="text"
+                  autoComplete="organization"
+                  required
+                  className="appearance-none relative block w-full px-4 py-3 border border-gray-300 rounded-lg placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-lg transition duration-200"
+                  placeholder="Company Name"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  disabled={isLoading}
+                />
+              </div>
+            </>
+          )}
 
           <div>
             <button

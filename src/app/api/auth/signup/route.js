@@ -4,11 +4,11 @@ import { NextResponse } from "next/server";
 
 export async function POST(req) {
   try {
-    const { email, password } = await req.json();
+    const { email, password, username, country, phoneNumber, companyName } = await req.json();
     
-    if (!email || !password) {
+    if (!email || !password || !username || !country || !phoneNumber || !companyName) {
       return NextResponse.json(
-        { message: "Email and password required" },
+        { message: "All fields are required: email, password, username, country, phone number, and company name" },
         { status: 400 }
       );
     }
@@ -18,11 +18,14 @@ export async function POST(req) {
     const users = db.collection("users");
 
     // Check if user already exists
-    const existingUser = await users.findOne({ email });
+    const existingUser = await users.findOne({ 
+      $or: [{ email }, { username }] 
+    });
     if (existingUser) {
       await client.close();
+      const message = existingUser.email === email ? "User with this email already exists" : "Username already taken";
       return NextResponse.json(
-        { message: "User already exists" },
+        { message },
         { status: 409 }
       );
     }
@@ -32,6 +35,11 @@ export async function POST(req) {
     await users.insertOne({
       email,
       password: hashedPassword,
+      username,
+      country,
+      phoneNumber,
+      companyName,
+      isProfileComplete: true,
       createdAt: new Date(),
     });
 
