@@ -1,4 +1,17 @@
-export { default } from "next-auth/middleware";
+import { withAuth } from 'next-auth/middleware';
+import { authConfig } from './app/auth.config';
+
+export default withAuth(
+  // `withAuth` augments your `Request` with the user's token.
+  function middleware(req) {
+    return null;
+  },
+  {
+    callbacks: {
+      authorized: ({ token }) => !!token,
+    },
+  }
+);
 
 export const config = {
   matcher: [
