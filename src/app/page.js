@@ -21,7 +21,8 @@ export default function Home() {
     }
 
     try {
-      const res = await fetch("https://n8n.srv1042890.hstgr.cloud/webhook/bulk-vcf-upload", {
+      const webhookUrl = process.env.NEXT_PUBLIC_WEBHOOK_URL;
+      const res = await fetch(webhookUrl, {
         method: "POST",
         body: formData,
       });
