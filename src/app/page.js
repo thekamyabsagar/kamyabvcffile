@@ -72,13 +72,6 @@ export default function Home() {
           </svg>
         </button>
         
-        {/* Logout button
-        <button
-          onClick={() => signOut()}
-          className="px-4 py-2 bg-white text-gray-700 rounded-lg shadow-md hover:bg-gray-100 transition-all duration-200 text-sm font-medium border border-gray-200"
-        >
-          Logout
-        </button> */}
       </div>
 
       <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center border border-gray-100 mt-12">
