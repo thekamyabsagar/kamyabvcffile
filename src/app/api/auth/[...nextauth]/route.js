@@ -114,8 +114,14 @@ export const authOptions = {
       else if (new URL(url).origin === baseUrl) return url;
       return baseUrl;
     },
-    async session({ session, token }) {
-      if (session?.user?.email && token.provider !== "credentials") {
+    async session({ session, token, trigger, newSession }) {
+      // Handle session updates (when update() is called from client)
+      if (trigger === "update" && newSession?.user) {
+        session.user = { ...session.user, ...newSession.user };
+        return session;
+      }
+      
+      if (session?.user?.email) {
         try {
           const client = await MongoClient.connect(process.env.MONGODB_URI);
           const users = client.db().collection("users");
@@ -136,9 +142,13 @@ export const authOptions = {
       }
       return session;
     },
-    async jwt({ token, account, user }) {
+    async jwt({ token, account, user, trigger, session }) {
       if (account) {
         token.provider = account.provider;
+      }
+      // Handle session updates
+      if (trigger === "update" && session?.user) {
+        token = { ...token, ...session.user };
       }
       return token;
     },

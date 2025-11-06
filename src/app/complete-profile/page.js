@@ -10,7 +10,7 @@ export default function CompleteProfile() {
   const [companyName, setCompanyName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const router = useRouter();
 
   useEffect(() => {
@@ -46,7 +46,22 @@ export default function CompleteProfile() {
       const data = await response.json();
       
       if (response.ok) {
+        // Update the session with the new profile data
+        await update({
+          ...session,
+          user: {
+            ...session.user,
+            isProfileComplete: true,
+            username,
+            country,
+            phoneNumber,
+            companyName,
+          }
+        });
+        
+        // Now redirect to home page
         router.push("/");
+        router.refresh(); // Force a refresh to ensure the guard picks up the new session
       } else {
         setError(data.message || "Profile completion failed");
       }
