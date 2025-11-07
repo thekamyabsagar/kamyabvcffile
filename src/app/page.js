@@ -158,7 +158,7 @@ export default function Home() {
       </div>
       
       <footer className="mt-10 text-xs text-gray-400 text-center">
-        &copy; {new Date().getFullYear()} VCF Extractor. All rights reserved.
+        &copy; {new Date().getFullYear()} Kamyab VCF Converter. All rights reserved.
       </footer>
     </main>
   );
