@@ -1,17 +1,63 @@
 "use client";
 import { useState } from "react";
-import { useSession, signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import toast from "react-hot-toast";
+import UploadProgress from "./components/UploadProgress";
+import CardTypeToggle from "./components/CardTypeToggle";
+import ImagePreviewGrid from "./components/ImagePreviewGrid";
+import FileUploadInput from "./components/FileUploadInput";
+import SuccessDownload from "./components/SuccessDownload";
+import NavigationBar from "./components/NavigationBar";
 
 export default function Home() {
   const [files, setFiles] = useState(null);
+  const [imagePreviews, setImagePreviews] = useState([]);
   const [outputUrl, setOutputUrl] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [cardType, setCardType] = useState("single"); // "single" or "double"
   const { data: session, status } = useSession();
+
+  const handleFileSelect = (e) => {
+    const selectedFiles = e.target.files;
+    if (selectedFiles.length > 0) {
+      setFiles(selectedFiles);
+      // Create preview URLs for selected images
+      const previewUrls = Array.from(selectedFiles).map(file => ({
+        file: file,
+        url: URL.createObjectURL(file)
+      }));
+      setImagePreviews(previewUrls);
+    }
+  };
+
+  const handleDeleteImage = (index) => {
+    const newPreviews = imagePreviews.filter((_, i) => i !== index);
+    setImagePreviews(newPreviews);
+    
+    // Convert remaining previews back to a FileList-like object
+    const dt = new DataTransfer();
+    newPreviews.forEach(preview => dt.items.add(preview.file));
+    setFiles(dt.files);
+  };
 
   const handleUpload = async () => {
     if (!files || files.length === 0) {
-      alert("Please select at least one photo!");
+      toast.error("Please select at least one photo!");
+      return;
+    }
+
+    // Validation for double-sided cards
+    if (cardType === "double" && files.length < 2) {
+      toast.error("Double-sided cards require at least 2 photos (front & back)", {
+        duration: 4000,
+        icon: "📸",
+        style: {
+          borderRadius: "10px",
+          background: "#333",
+          color: "#fff",
+          padding: "16px",
+        },
+      });
       return;
     }
 
@@ -24,7 +70,15 @@ export default function Home() {
     }
 
     try {
-      const webhookUrl = process.env.NEXT_PUBLIC_WEBHOOK_URL;
+      // Use different webhook URLs based on card type
+      const webhookUrl = cardType === "single" 
+        ? process.env.NEXT_PUBLIC_WEBHOOK_URL_SINGLE 
+        : process.env.NEXT_PUBLIC_WEBHOOK_URL_DOUBLE;
+
+      if (!webhookUrl) {
+        throw new Error("Webhook URL not configured for " + cardType + " sided cards");
+      }
+
       const res = await fetch(webhookUrl, {
         method: "POST",
         body: formData,
@@ -36,101 +90,76 @@ export default function Home() {
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       setOutputUrl(url);
+      toast.success("VCF file created successfully!");
     } catch (err) {
       console.error("Upload failed", err);
-      alert("Something went wrong while uploading!");
+      toast.error("Something went wrong while uploading!");
     } finally {
       setLoading(false);
     }
   };
 
-  const router = useRouter();
+  const handleConvertAnother = () => {
+    setOutputUrl(null);
+    setFiles(null);
+    setImagePreviews([]);
+  };
 
   return (
     <main className="flex flex-col items-center min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-100 p-6 relative">
-      {/* Top navigation */}
-      <div className="absolute top-4 right-4 flex items-center space-x-3">
-        {/* Profile icon */}
-        <button
-          onClick={() => router.push("/profile")}
-          className="flex items-center justify-center w-10 h-10 bg-white text-gray-700 rounded-full shadow-md hover:bg-gray-100 transition-all duration-200 border border-gray-200"
-          title="View Profile"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-            />
-          </svg>
-        </button>
-        
-      </div>
+      <NavigationBar />
 
       <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center border border-gray-100 mt-12">
-        <h1 className="text-3xl font-bold mb-6 text-gray-800 tracking-tight text-center drop-shadow-sm">Bulk Photo to VCF Converter</h1>
+        <h1 className="text-3xl font-bold mb-6 text-gray-800 tracking-tight text-center drop-shadow-sm">
+          Kamyab VCF Converter
+        </h1>
+
+        {/* Show upload progress when loading */}
+        {loading && <UploadProgress imageCount={imagePreviews.length} />}
+
+        {/* Card Type Toggle */}
+        {!outputUrl && !loading && (
+          <CardTypeToggle cardType={cardType} onToggle={setCardType} />
+        )}
 
         {/* Custom file input */}
-        <label htmlFor="file-upload" className="cursor-pointer w-full flex flex-col items-center justify-center py-6 px-4 mb-6 border-2 border-dashed border-blue-300 rounded-xl bg-blue-50 hover:bg-blue-100 transition-all duration-200 shadow-sm">
-          <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="mb-2 text-blue-500">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M4 12l4-4m0 0l4 4m-4-4v12" />
-          </svg>
-          <span className="text-blue-700 font-medium">Choose Photos</span>
-          <span className="text-xs text-gray-500 mt-1">(You can select multiple images)</span>
-          <input
-            id="file-upload"
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={(e) => setFiles(e.target.files)}
-            className="hidden"
+        {!outputUrl && !loading && (
+          <FileUploadInput
+            hasImages={imagePreviews.length > 0}
+            onFileSelect={handleFileSelect}
           />
-        </label>
-
-        {/* Show selected files */}
-        {files && files.length > 0 && (
-          <div className="w-full mb-4 text-sm text-gray-700 bg-blue-50 rounded-lg p-2 border border-blue-200">
-            <span className="font-semibold">Selected:</span>
-            <ul className="list-disc ml-5 mt-1">
-              {Array.from(files).map((file, idx) => (
-                <li key={idx}>{file.name}</li>
-              ))}
-            </ul>
-          </div>
         )}
 
-        <button
-          onClick={handleUpload}
-          disabled={!files || loading}
-          className={`w-full py-3 mt-2 rounded-xl font-semibold text-lg shadow-md transition-all duration-200
-            ${!files || loading ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-gradient-to-r from-blue-600 to-purple-500 text-white hover:scale-105 hover:shadow-lg"}`}
-        >
-          {loading ? (
-            <span className="flex items-center justify-center gap-2">
-              <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="white" strokeWidth="4" fill="none" /></svg>
-              Processing...
-            </span>
-          ) : "Upload & Convert"}
-        </button>
+        {/* Image Previews */}
+        {!outputUrl && !loading && (
+          <ImagePreviewGrid
+            imagePreviews={imagePreviews}
+            onDeleteImage={handleDeleteImage}
+          />
+        )}
+
+        {!outputUrl && !loading && (
+          <button
+            onClick={handleUpload}
+            disabled={!files}
+            className={`w-full py-3 mt-2 rounded-xl font-semibold text-lg shadow-md transition-all duration-200
+              ${!files ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-gradient-to-r from-blue-600 to-purple-500 text-white hover:shadow-lg"}`}
+          >
+            Upload & Convert
+          </button>
+        )}
 
         {outputUrl && (
-          <a
-            href={outputUrl}
-            download="Contact.vcf"
-            className="mt-8 w-full py-3 rounded-xl bg-green-500 text-white font-bold text-center shadow-lg hover:bg-green-600 transition-all duration-200"
-          >
-            Download .vcf File
-          </a>
+          <SuccessDownload
+            outputUrl={outputUrl}
+            onConvertAnother={handleConvertAnother}
+          />
         )}
       </div>
-      <footer className="mt-10 text-xs text-gray-400 text-center">&copy; {new Date().getFullYear()} VCF Extractor. All rights reserved.</footer>
+      
+      <footer className="mt-10 text-xs text-gray-400 text-center">
+        &copy; {new Date().getFullYear()} VCF Extractor. All rights reserved.
+      </footer>
     </main>
   );
 }
