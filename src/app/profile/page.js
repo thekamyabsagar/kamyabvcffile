@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Loader from "../components/Loader";
 
 export default function ProfilePage() {
   const [userProfile, setUserProfile] = useState(null);
@@ -14,6 +15,7 @@ export default function ProfilePage() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   
@@ -90,10 +92,10 @@ export default function ProfilePage() {
     setEditForm(prev => ({ ...prev, [field]: value }));
   };
 
-  if (status === "loading" || isLoading) {
+  if (status === "loading" || isLoading || isLoggingOut) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-100">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+        <Loader size="12" />
       </div>
     );
   }
@@ -124,7 +126,10 @@ export default function ProfilePage() {
         
         <div className="flex items-center space-x-3">
           <button
-            onClick={() => signOut()}
+            onClick={async () => {
+              setIsLoggingOut(true);
+              await signOut({ redirect: true, callbackUrl: "/login" });
+            }}
             className="px-4 py-2 bg-white text-gray-700 rounded-lg shadow-md hover:bg-gray-100 transition-all duration-200 text-sm font-medium border border-gray-200"
           >
             Logout

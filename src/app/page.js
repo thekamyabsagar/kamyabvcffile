@@ -8,6 +8,7 @@ import ImagePreviewGrid from "./components/ImagePreviewGrid";
 import FileUploadInput from "./components/FileUploadInput";
 import SuccessDownload from "./components/SuccessDownload";
 import NavigationBar from "./components/NavigationBar";
+import ConsentDialog from "./components/ConsentDialog";
 
 export default function Home() {
   const [files, setFiles] = useState(null);
@@ -15,6 +16,7 @@ export default function Home() {
   const [outputUrl, setOutputUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [cardType, setCardType] = useState("single"); // "single" or "double"
+  const [showConsent, setShowConsent] = useState(false);
   const { data: session, status } = useSession();
 
   const handleFileSelect = (e) => {
@@ -46,21 +48,12 @@ export default function Home() {
       return;
     }
 
-    // Validation for double-sided cards
-    if (cardType === "double" && files.length < 2) {
-      toast.error("Double-sided cards require at least 2 photos (front & back)", {
-        duration: 4000,
-        icon: "📸",
-        style: {
-          borderRadius: "10px",
-          background: "#333",
-          color: "#fff",
-          padding: "16px",
-        },
-      });
-      return;
-    }
+    // Show consent dialog instead of immediate upload
+    setShowConsent(true);
+  };
 
+  const handleUploadConfirmed = async () => {
+    setShowConsent(false);
     setLoading(true);
     setOutputUrl(null);
 
@@ -160,6 +153,15 @@ export default function Home() {
       <footer className="mt-10 text-xs text-gray-400 text-center">
         &copy; {new Date().getFullYear()} Kamyab VCF Converter. All rights reserved.
       </footer>
+
+      {/* Consent Dialog */}
+      <ConsentDialog
+        isOpen={showConsent}
+        onClose={() => setShowConsent(false)}
+        onConfirm={handleUploadConfirmed}
+        cardType={cardType}
+        imageCount={files ? files.length : 0}
+      />
     </main>
   );
 }
