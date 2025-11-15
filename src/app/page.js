@@ -22,13 +22,20 @@ export default function Home() {
   const handleFileSelect = (e) => {
     const selectedFiles = e.target.files;
     if (selectedFiles.length > 0) {
-      setFiles(selectedFiles);
-      // Create preview URLs for selected images
-      const previewUrls = Array.from(selectedFiles).map(file => ({
+      // Create preview URLs for newly selected images
+      const newPreviewUrls = Array.from(selectedFiles).map(file => ({
         file: file,
         url: URL.createObjectURL(file)
       }));
-      setImagePreviews(previewUrls);
+      
+      // Append new files to existing ones
+      const updatedPreviews = [...imagePreviews, ...newPreviewUrls];
+      setImagePreviews(updatedPreviews);
+      
+      // Combine existing files with new files
+      const dt = new DataTransfer();
+      updatedPreviews.forEach(preview => dt.items.add(preview.file));
+      setFiles(dt.files);
     }
   };
 
