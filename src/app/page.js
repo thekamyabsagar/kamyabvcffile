@@ -86,8 +86,23 @@ export default function Home() {
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      // Assuming n8n returns the .vcf as binary output
-      const blob = await res.blob();
+      // Get response as text to check if it's JSON error or VCF file
+      const responseText = await res.text();
+      
+      // Try to parse as JSON to check for error response
+      try {
+        const jsonData = JSON.parse(responseText);
+        // Check if it's an error response
+        if (jsonData.error || (Array.isArray(jsonData) && jsonData[0]?.error)) {
+          toast.error("Please provide a valid visiting card photo!");
+          return;
+        }
+      } catch (e) {
+        // Not JSON, it's a VCF file - this is expected
+      }
+
+      // Create blob from response and set download URL
+      const blob = new Blob([responseText], { type: 'text/vcard' });
       const url = window.URL.createObjectURL(blob);
       setOutputUrl(url);
       toast.success("VCF file created successfully!");
