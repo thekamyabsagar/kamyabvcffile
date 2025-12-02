@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import PackageCard from "../components/PackageCard";
 import { useRazorpay, initiatePayment } from "../utils/razorpay";
 import toast from "react-hot-toast";
@@ -9,10 +9,40 @@ import toast from "react-hot-toast";
 export default function PackagesPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const isRazorpayLoaded = useRazorpay();
+  const [isNewUser, setIsNewUser] = useState(false);
+
+  useEffect(() => {
+    // Check if this is a new user from URL params
+    const newUserParam = searchParams.get("newUser");
+    setIsNewUser(newUserParam === "true");
+  }, [searchParams]);
+
+  // Also check user's package status to show skip button
+  useEffect(() => {
+    if (status === "authenticated") {
+      checkUserPackageStatus();
+    }
+  }, [status]);
+
+  const checkUserPackageStatus = async () => {
+    try {
+      const response = await fetch("/api/contacts/usage");
+      if (response.ok) {
+        const data = await response.json();
+        // If user has no package, show the skip button
+        if (data.status === "no-package" || !data.hasPackage) {
+          setIsNewUser(true);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to check package status:", error);
+    }
+  };
 
   const packages = [
     { 
@@ -85,15 +115,52 @@ export default function PackagesPage() {
     }
   };
 
+  const handleSkip = async () => {
+    setIsLoading(true);
+    setError("");
+    
+    try {
+      // Activate free trial
+      const response = await fetch("/api/packages/activate-trial", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setSuccess("Free trial activated! Redirecting to home...");
+        toast.success("Free trial activated! Welcome aboard! 🎉");
+        // Wait longer to ensure database is updated
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Use router.push instead of window.location for smoother navigation
+        router.push("/");
+        // Force refresh contact info after navigation
+        window.location.href = "/";
+      } else {
+        setError(data.message || "Failed to activate free trial");
+        toast.error(data.message || "Failed to activate free trial");
+      }
+    } catch (error) {
+      setError("Error activating free trial");
+      toast.error("Error activating free trial");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-100 py-10">
       <div className="max-w-6xl mx-auto px-4">
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-            Choose Your Package
+            {isNewUser ? "Welcome! Choose Your Package" : "Choose Your Package"}
           </h1>
           <p className="text-gray-600 text-lg">
-           Select the perfect plan for your needs. New users get 30 days free trial!
+            {isNewUser 
+              ? "Select a plan to get started, or skip to use the free trial with 100 contacts for 30 days!"
+              : "Select the perfect plan for your needs. New users get 30 days free trial!"
+            }
           </p>
         </div>
 
@@ -124,12 +191,23 @@ export default function PackagesPage() {
         {/* Free Trial Notice */}
         <div className="mt-12 text-center bg-white p-6 rounded-xl shadow-lg max-w-2xl mx-auto">
           <h3 className="text-xl font-bold text-gray-800 mb-2">
-            New User Bonus!
+            {isNewUser ? "🎉 Free Trial Included!" : "New User Bonus!"}
           </h3>
-          <p className="text-gray-600">
-            All new users automatically receive a <span className="font-bold text-purple-600">30-day free trial</span> with 
-            <span className="font-bold text-purple-600"> 100 contacts</span> upon registration!
+          <p className="text-gray-600 mb-4">
+            {isNewUser
+              ? "Not ready to buy? No problem! Get started with our free trial - 100 contacts for 30 days, absolutely free!"
+              : "All new users automatically receive a 30-day free trial with 100 contacts upon registration!"
+            }
           </p>
+          {isNewUser && (
+            <button
+              onClick={handleSkip}
+              disabled={isLoading}
+              className="mt-2 px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition-all duration-200 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? "Activating..." : "Skip & Start with Free Trial"}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -50,6 +50,7 @@ export async function POST(req) {
       { email: session.user.email },
       {
         $set: {
+          isNewUser: false,
           package: {
             name: packageDetails.packageName,
             contactLimit: packageDetails.contactLimit,

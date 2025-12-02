@@ -51,31 +51,13 @@ export async function POST(req) {
           phoneNumber,
           companyName,
           isProfileComplete: true,
+          isNewUser: false,
           updatedAt: currentDate,
         },
         $setOnInsert: {
           email,
           createdAt: currentDate,
-          package: {
-            name: "Free Trial",
-            contactLimit: 100,
-            contactsUsed: 0,
-            purchaseDate: currentDate,
-            expiryDate: trialExpiryDate,
-            validityDays: 30,
-            price: 0,
-            status: "active"
-          },
-          packageHistory: [
-            {
-              name: "Free Trial",
-              contactLimit: 100,
-              purchaseDate: currentDate,
-              expiryDate: trialExpiryDate,
-              validityDays: 30,
-              price: 0
-            }
-          ]
+          isNewUser: true
         }
       },
       { upsert: true }

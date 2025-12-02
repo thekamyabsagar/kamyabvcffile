@@ -60,7 +60,7 @@ export async function POST(req) {
     if (!user.package) {
       await client.close();
       return NextResponse.json(
-        { message: "No active package found" },
+        { message: "No active package found. Please select a package first." },
         { status: 403 }
       );
     }
@@ -162,8 +162,17 @@ export async function GET(req) {
 
     if (!user || !user.package) {
       return NextResponse.json(
-        { message: "No package found" },
-        { status: 404 }
+        { 
+          message: "No package found",
+          hasPackage: false,
+          contactsUsed: 0,
+          contactLimit: 0,
+          contactsRemaining: 0,
+          isExpired: false,
+          isExhausted: false,
+          status: "no-package"
+        },
+        { status: 200 }
       );
     }
 

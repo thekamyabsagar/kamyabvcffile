@@ -30,11 +30,9 @@ export async function POST(req) {
       );
     }
 
-    // Hash password and create user with free trial package
+    // Hash password and create user - mark as new user
     const hashedPassword = await hash(password, 12);
     const currentDate = new Date();
-    const trialExpiryDate = new Date();
-    trialExpiryDate.setDate(trialExpiryDate.getDate() + 30); // 30 days free trial
 
     await users.insertOne({
       email,
@@ -44,27 +42,8 @@ export async function POST(req) {
       phoneNumber,
       companyName,
       isProfileComplete: true,
+      isNewUser: true,
       createdAt: currentDate,
-      package: {
-        name: "Free Trial",
-        contactLimit: 100,
-        contactsUsed: 0,
-        purchaseDate: currentDate,
-        expiryDate: trialExpiryDate,
-        validityDays: 30,
-        price: 0,
-        status: "active"
-      },
-      packageHistory: [
-        {
-          name: "Free Trial",
-          contactLimit: 100,
-          purchaseDate: currentDate,
-          expiryDate: trialExpiryDate,
-          validityDays: 30,
-          price: 0
-        }
-      ]
     });
 
     await client.close();

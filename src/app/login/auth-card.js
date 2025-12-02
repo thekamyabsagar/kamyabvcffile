@@ -77,8 +77,19 @@ export default function AuthCard() {
         });
         const data = await response.json();
         if (response.ok) {
-          setIsLogin(true);
-          setError("Signup successful! Please log in.");
+          // Auto login after successful signup
+          const result = await signIn("credentials", {
+            redirect: false,
+            email,
+            password,
+          });
+          if (result?.error) {
+            setError("Signup successful but auto-login failed. Please log in manually.");
+            setIsLogin(true);
+          } else {
+            // Redirect new users to packages page
+            router.push("/packages?newUser=true");
+          }
         } else {
           setError(data.message || "Signup failed");
         }

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import UploadProgress from "./components/UploadProgress";
 import CardTypeToggle from "./components/CardTypeToggle";
@@ -19,7 +20,7 @@ export default function Home() {
   const [showConsent, setShowConsent] = useState(false);
   const [contactInfo, setContactInfo] = useState(null);
   const { data: session, status } = useSession();
-
+  const router = useRouter();
   // Fetch contact info when user is authenticated
   useEffect(() => {
     if (status === "authenticated") {
@@ -204,6 +205,21 @@ export default function Home() {
               className="w-full py-2 px-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 text-sm"
             >
               Renew Package
+            </button>
+          </div>
+        )}
+
+        {/* No Package Warning */}
+        {status === "authenticated" && contactInfo?.status === "no-package" && !loading && (
+          <div className="w-full mb-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+            <p className="text-sm text-yellow-700 text-center font-semibold mb-3">
+              ⚠️ No active package found. Please select a package to continue.
+            </p>
+            <button
+              onClick={() => router.push("/packages")}
+              className="w-full py-2 px-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 text-sm"
+            >
+              View Packages
             </button>
           </div>
         )}
