@@ -1,12 +1,12 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PackageCard from "../components/PackageCard";
 import { useRazorpay, initiatePayment } from "../utils/razorpay";
 import toast from "react-hot-toast";
 
-export default function PackagesPage() {
+function PackagesContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -211,5 +211,20 @@ export default function PackagesPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PackagesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading packages...</p>
+        </div>
+      </div>
+    }>
+      <PackagesContent />
+    </Suspense>
   );
 }
