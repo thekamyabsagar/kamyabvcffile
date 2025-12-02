@@ -37,7 +37,11 @@ export async function POST(req) {
       );
     }
 
-    // Update or create user profile
+    // Update or create user profile with free trial package
+    const currentDate = new Date();
+    const trialExpiryDate = new Date();
+    trialExpiryDate.setDate(trialExpiryDate.getDate() + 30); // 30 days free trial
+
     const result = await users.updateOne(
       { email },
       {
@@ -47,11 +51,31 @@ export async function POST(req) {
           phoneNumber,
           companyName,
           isProfileComplete: true,
-          updatedAt: new Date(),
+          updatedAt: currentDate,
         },
         $setOnInsert: {
           email,
-          createdAt: new Date(),
+          createdAt: currentDate,
+          package: {
+            name: "Free Trial",
+            contactLimit: 100,
+            contactsUsed: 0,
+            purchaseDate: currentDate,
+            expiryDate: trialExpiryDate,
+            validityDays: 30,
+            price: 0,
+            status: "active"
+          },
+          packageHistory: [
+            {
+              name: "Free Trial",
+              contactLimit: 100,
+              purchaseDate: currentDate,
+              expiryDate: trialExpiryDate,
+              validityDays: 30,
+              price: 0
+            }
+          ]
         }
       },
       { upsert: true }

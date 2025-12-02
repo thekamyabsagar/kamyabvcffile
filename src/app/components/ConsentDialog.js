@@ -31,6 +31,14 @@ export default function ConsentDialog({
             <p className="text-blue-700 mt-2 text-sm">
               Number of images selected: {imageCount}
             </p>
+            <p className="text-blue-900 mt-2 font-semibold text-lg">
+              Contacts to be used: {cardType === "single" ? imageCount : Math.ceil(imageCount / 2)}
+            </p>
+            {cardType === "double" && (
+              <p className="text-blue-600 mt-1 text-xs italic">
+                (2 images = 1 contact)
+              </p>
+            )}
           </div>
 
           {cardType === "single" && imageCount > 1 && (

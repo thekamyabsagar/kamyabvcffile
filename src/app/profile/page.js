@@ -3,9 +3,12 @@ import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Loader from "../components/Loader";
+import { GrMoney } from "react-icons/gr";
+import ProfilePackage from "../components/ProfilePackage";
 
 export default function ProfilePage() {
   const [userProfile, setUserProfile] = useState(null);
+  const [packageInfo, setPackageInfo] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     username: "",
@@ -36,10 +39,13 @@ export default function ProfilePage() {
   const fetchUserProfile = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/user/profile");
+      const [profileResponse, packageResponse] = await Promise.all([
+        fetch("/api/user/profile"),
+        fetch("/api/packages/purchase")
+      ]);
       
-      if (response.ok) {
-        const data = await response.json();
+      if (profileResponse.ok) {
+        const data = await profileResponse.json();
         setUserProfile(data);
         setEditForm({
           username: data.username || "",
@@ -49,6 +55,11 @@ export default function ProfilePage() {
         });
       } else {
         setError("Failed to fetch profile");
+      }
+
+      if (packageResponse.ok) {
+        const packageData = await packageResponse.json();
+        setPackageInfo(packageData);
       }
     } catch (error) {
       setError("Error fetching profile");
@@ -202,6 +213,85 @@ export default function ProfilePage() {
                   {userProfile.createdAt ? new Date(userProfile.createdAt).toLocaleDateString() : "N/A"}
                 </p>
               </div>
+
+              {/* Current Package Section
+              {packageInfo?.currentPackage && (
+                <div className="col-span-full mt-4">
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-lg border-2 border-purple-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-bold text-gray-800 flex items-center">
+                        <span className="mr-2"><GrMoney /></span>
+                        Current Package
+                      </h3>
+                      {packageInfo.currentPackage.status === "active" && (
+                        <span className="px-3 py-1 bg-green-500 text-white text-sm font-semibold rounded-full">
+                          Active
+                        </span>
+                      )}
+                      {packageInfo.currentPackage.status === "expired" && (
+                        <span className="px-3 py-1 bg-red-500 text-white text-sm font-semibold rounded-full">
+                          Expired
+                        </span>
+                      )}
+                      {packageInfo.currentPackage.status === "exhausted" && (
+                        <span className="px-3 py-1 bg-orange-500 text-white text-sm font-semibold rounded-full">
+                          Limit Exhausted
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-white p-4 rounded-lg">
+                        <p className="text-sm text-gray-600 mb-1">Package Name</p>
+                        <p className="text-lg font-bold text-purple-600">
+                          {packageInfo.currentPackage.name}
+                        </p>
+                      </div>
+                      
+                      <div className="bg-white p-4 rounded-lg">
+                        <p className="text-sm text-gray-600 mb-1">Contacts</p>
+                        <p className="text-lg font-bold text-gray-800">
+                          {packageInfo.currentPackage.contactsUsed || 0} / {packageInfo.currentPackage.contactLimit}
+                        </p>
+                      </div>
+                      
+                      <div className="bg-white p-4 rounded-lg">
+                        <p className="text-sm text-gray-600 mb-1">Expires On</p>
+                        <p className="text-lg font-bold text-gray-800">
+                          {new Date(packageInfo.currentPackage.expiryDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    {(packageInfo.currentPackage.status === "expired" || packageInfo.currentPackage.status === "exhausted") && (
+                      <div className="mt-4">
+                        <button
+                          onClick={() => router.push("/packages")}
+                          className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 shadow-lg"
+                        >
+                          {packageInfo.currentPackage.status === "expired" ? "Renew Package" : "Upgrade Package"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {!packageInfo?.currentPackage && (
+                <div className="col-span-full mt-4">
+                  <div className="bg-yellow-50 p-6 rounded-lg border-2 border-yellow-200 text-center">
+                    <p className="text-gray-700 mb-4">You don't have an active package.</p>
+                    <button
+                      onClick={() => router.push("/packages")}
+                      className="py-3 px-6 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 shadow-lg"
+                    >
+                      View Packages
+                    </button>
+                  </div>
+                </div>
+              )} */}
+
+              <ProfilePackage packageInfo={packageInfo} />
 
               <div className="pt-4">
                 <button

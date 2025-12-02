@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import toast from "react-hot-toast";
 import UploadProgress from "./components/UploadProgress";
@@ -17,7 +17,27 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [cardType, setCardType] = useState("single"); // "single" or "double"
   const [showConsent, setShowConsent] = useState(false);
+  const [contactInfo, setContactInfo] = useState(null);
   const { data: session, status } = useSession();
+
+  // Fetch contact info when user is authenticated
+  useEffect(() => {
+    if (status === "authenticated") {
+      fetchContactInfo();
+    }
+  }, [status]);
+
+  const fetchContactInfo = async () => {
+    try {
+      const response = await fetch("/api/contacts/usage");
+      if (response.ok) {
+        const data = await response.json();
+        setContactInfo(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch contact info:", error);
+    }
+  };
 
   const handleFileSelect = (e) => {
     const selectedFiles = e.target.files;
@@ -64,12 +84,34 @@ export default function Home() {
     setLoading(true);
     setOutputUrl(null);
 
-    const formData = new FormData();
-    for (let i = 0; i < files.length; i++) {
-      formData.append("files", files[i]); // "files" key matches your n8n webhook input
-    }
-
     try {
+      // First, check if user is logged in and has enough contacts
+      if (status === "authenticated") {
+        const contactCheckResponse = await fetch("/api/contacts/usage", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageCount: files.length,
+            cardType: cardType
+          }),
+        });
+
+        const contactCheckData = await contactCheckResponse.json();
+
+        if (!contactCheckResponse.ok) {
+          toast.error(contactCheckData.message || "Contact limit exceeded!");
+          setLoading(false);
+          return;
+        }       
+        // Refresh contact info after successful usage
+        await fetchContactInfo();
+      }
+
+      const formData = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        formData.append("files", files[i]); // "files" key matches your n8n webhook input
+      }
+
       // Use different webhook URLs based on card type
       const webhookUrl = cardType === "single" 
         ? process.env.NEXT_PUBLIC_WEBHOOK_URL_SINGLE 
@@ -118,6 +160,10 @@ export default function Home() {
     setOutputUrl(null);
     setFiles(null);
     setImagePreviews([]);
+    // Refresh contact info after conversion
+    if (status === "authenticated") {
+      fetchContactInfo();
+    }
   };
 
   return (
@@ -128,6 +174,39 @@ export default function Home() {
         <h1 className="text-3xl font-bold mb-6 text-gray-800 tracking-tight text-center drop-shadow-sm">
           Kamyab VCF Converter
         </h1>
+
+        {/* Contact Info Display for authenticated users */}
+        {status === "authenticated" && contactInfo && contactInfo.status === "active" && !loading}
+
+        {/* Exhausted Contacts Warning */}
+        {status === "authenticated" && contactInfo?.isExhausted && !contactInfo?.isExpired && !loading && (
+          <div className="w-full mb-4 p-4 bg-orange-50 rounded-lg border border-orange-200">
+            <p className="text-sm text-orange-700 text-center font-semibold mb-2">
+              ⚠️ Contact limit exhausted! Please upgrade your package to continue.
+            </p>
+            <button
+              onClick={() => window.location.href = "/packages"}
+              className="w-full py-2 px-4 bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold rounded-lg hover:from-orange-600 hover:to-red-600 transition-all duration-200 text-sm"
+            >
+              Upgrade Package
+            </button>
+          </div>
+        )}
+
+        {/* Expired Package Warning */}
+        {status === "authenticated" && contactInfo?.isExpired && !loading && (
+          <div className="w-full mb-4 p-4 bg-red-50 rounded-lg border border-red-200">
+            <p className="text-sm text-red-600 text-center font-semibold mb-2">
+              Your package has expired. Please purchase a new package to continue.
+            </p>
+            <button
+              onClick={() => window.location.href = "/packages"}
+              className="w-full py-2 px-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 text-sm"
+            >
+              Renew Package
+            </button>
+          </div>
+        )}
 
         {/* Show upload progress when loading */}
         {loading && <UploadProgress imageCount={imagePreviews.length} />}
