@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import PackageCard from "../components/PackageCard";
 import { useRazorpay, initiatePayment } from "../utils/razorpay";
 import toast from "react-hot-toast";
+import Loader from "../components/Loader";
 
 function PackagesContent() {
   const { data: session, status } = useSession();
@@ -15,6 +16,8 @@ function PackagesContent() {
   const [success, setSuccess] = useState("");
   const isRazorpayLoaded = useRazorpay();
   const [isNewUser, setIsNewUser] = useState(false);
+  const [isCheckingPackage, setIsCheckingPackage] = useState(true);
+  const [currentPackageData, setCurrentPackageData] = useState(null);
 
   useEffect(() => {
     // Check if this is a new user from URL params
@@ -22,25 +25,49 @@ function PackagesContent() {
     setIsNewUser(newUserParam === "true");
   }, [searchParams]);
 
-  // Also check user's package status to show skip button
+  // Check user's package status and redirect if they have an active package
   useEffect(() => {
     if (status === "authenticated") {
       checkUserPackageStatus();
+    } else if (status === "unauthenticated") {
+      setIsCheckingPackage(false);
     }
-  }, [status]);
+  }, [status, router]);
 
   const checkUserPackageStatus = async () => {
+    setIsCheckingPackage(true);
     try {
+      // Check if user is coming from upgrade button
+      const isUpgrade = searchParams.get("upgrade") === "true";
+      
       const response = await fetch("/api/contacts/usage");
       if (response.ok) {
         const data = await response.json();
         // If user has no package, show the skip button
-        if (data.status === "no-package" || !data.hasPackage) {
+        if (data.status === "no-package" || data.hasPackage === false) {
           setIsNewUser(true);
+          setCurrentPackageData(null);
+          setIsCheckingPackage(false);
+        } else if (data.status === "active" || data.status === "expired" || data.status === "exhausted") {
+          // Store current package data
+          setCurrentPackageData(data);
+          
+          // Allow access if coming from upgrade button
+          if (isUpgrade) {
+            setIsCheckingPackage(false);
+            return;
+          }
+          // User has a package (active, expired, or exhausted), redirect to home
+          router.replace("/");
+        } else {
+          setIsCheckingPackage(false);
         }
+      } else {
+        setIsCheckingPackage(false);
       }
     } catch (error) {
       console.error("Failed to check package status:", error);
+      setIsCheckingPackage(false);
     }
   };
 
@@ -50,23 +77,52 @@ function PackagesContent() {
       price: 1, 
       features: ["100 Contacts", "30 Days Access"],
       contactLimit: 100,
-      validityDays: 30
+      validityDays: 30,
+      tier: 1
     },
     { 
       title: "Standard", 
       price: 2, 
       features: ["200 Contacts", "180 Days Access"],
       contactLimit: 200,
-      validityDays: 180
+      validityDays: 180,
+      tier: 2
     },
     { 
       title: "Premium", 
       price: 3, 
       features: ["300 Contacts", "360 Days Access"],
       contactLimit: 300,
-      validityDays: 360
+      validityDays: 360,
+      tier: 3
     },
   ];
+
+  // Helper function to determine package relationship
+  const getPackageRelationship = (packageName) => {
+    if (!currentPackageData || !currentPackageData.packageName) {
+      return "upgrade"; // No package or trial - all are upgrades
+    }
+
+    const currentPkg = packages.find(p => p.title === currentPackageData.packageName);
+    const targetPkg = packages.find(p => p.title === packageName);
+
+    if (!currentPkg || !targetPkg) {
+      return "upgrade";
+    }
+
+    if (currentPkg.tier === targetPkg.tier) {
+      // If current package is exhausted, allow buying again
+      if (currentPackageData.status === "exhausted") {
+        return "buy-again";
+      }
+      return "current";
+    } else if (targetPkg.tier > currentPkg.tier) {
+      return "upgrade";
+    } else {
+      return "downgrade";
+    }
+  };
 
   const handlePurchase = async ({ packageName, contactLimit, validityDays, price }) => {
     // Check if user is logged in
@@ -149,6 +205,18 @@ function PackagesContent() {
     }
   };
 
+  // Show loader while checking package status
+  if (status === "loading" || isCheckingPackage) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-100 flex items-center justify-center">
+        <div className="text-center">
+          <Loader size="12" />
+          <p className="text-gray-600 mt-4">Loading packages...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-100 py-10">
       <div className="max-w-6xl mx-auto px-4">
@@ -178,14 +246,20 @@ function PackagesContent() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {packages.map((p, i) => (
-            <PackageCard 
-              key={i} 
-              {...p} 
-              onPurchase={handlePurchase}
-              isLoading={isLoading}
-            />
-          ))}
+          {packages.map((p, i) => {
+            const relationship = getPackageRelationship(p.title);
+            return (
+              <PackageCard 
+                key={i} 
+                {...p} 
+                onPurchase={handlePurchase}
+                isLoading={isLoading}
+                relationship={relationship}
+                isCurrent={relationship === "current"}
+                isBuyAgain={relationship === "buy-again"}
+              />
+            );
+          })}
         </div>
 
         {/* Free Trial Notice */}

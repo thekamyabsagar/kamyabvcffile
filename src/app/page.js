@@ -16,7 +16,7 @@ export default function Home() {
   const [imagePreviews, setImagePreviews] = useState([]);
   const [outputUrl, setOutputUrl] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [cardType, setCardType] = useState("single"); // "single" or "double"
+  const [cardType, setCardType] = useState("single");
   const [showConsent, setShowConsent] = useState(false);
   const [contactInfo, setContactInfo] = useState(null);
   const { data: session, status } = useSession();
@@ -186,7 +186,7 @@ export default function Home() {
               ⚠️ Contact limit exhausted! Please upgrade your package to continue.
             </p>
             <button
-              onClick={() => window.location.href = "/packages"}
+              onClick={() => window.location.href = "/packages?upgrade=true"}
               className="w-full py-2 px-4 bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold rounded-lg hover:from-orange-600 hover:to-red-600 transition-all duration-200 text-sm"
             >
               Upgrade Package

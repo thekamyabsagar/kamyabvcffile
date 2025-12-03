@@ -14,7 +14,6 @@ export async function POST(req) {
     }
 
     const { amount, packageName, contactLimit, validityDays } = await req.json();
-    
     if (!amount || !packageName) {
       return NextResponse.json(
         { message: "Amount and package name are required" },
@@ -22,9 +21,12 @@ export async function POST(req) {
       );
     }
 
+    // Calculate amount with 18% tax
+    const taxRate = 0.18;
+    const amountWithTax = Math.round((amount + amount * taxRate) * 100); // in paise
+
     // Import Razorpay dynamically
     const Razorpay = (await import("razorpay")).default;
-    
     const razorpay = new Razorpay({
       key_id: process.env.RAZORPAY_KEY_ID,
       key_secret: process.env.RAZORPAY_KEY_SECRET,
@@ -32,7 +34,7 @@ export async function POST(req) {
 
     // Create order with Razorpay
     const options = {
-      amount: amount * 100, // Razorpay expects amount in paise
+      amount: amountWithTax, // Razorpay expects amount in paise
       currency: "INR",
       receipt: `receipt_${Date.now()}`,
       notes: {
@@ -40,6 +42,8 @@ export async function POST(req) {
         contactLimit: contactLimit,
         validityDays: validityDays,
         userEmail: session.user.email,
+        baseAmount: amount,
+        taxAmount: amount * taxRate,
       },
     };
 
@@ -51,6 +55,9 @@ export async function POST(req) {
         amount: order.amount,
         currency: order.currency,
         keyId: process.env.RAZORPAY_KEY_ID,
+        baseAmount: amount,
+        taxAmount: amount * taxRate,
+        totalAmount: (amount + amount * taxRate),
       },
       { status: 200 }
     );
