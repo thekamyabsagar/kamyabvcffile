@@ -42,9 +42,45 @@ export default function Home() {
 
   const handleFileSelect = (e) => {
     const selectedFiles = e.target.files;
-    if (selectedFiles.length > 0) {
-      // Create preview URLs for newly selected images
-      const newPreviewUrls = Array.from(selectedFiles).map(file => ({
+    if (!selectedFiles || selectedFiles.length === 0) {
+      return;
+    }
+
+    // Validate files
+    const validFiles = [];
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const maxFileSize = 10 * 1024 * 1024; // 10MB per file
+    const maxTotalFiles = 50; // Maximum total files allowed
+
+    Array.from(selectedFiles).forEach(file => {
+      // Validate file type
+      if (!allowedTypes.includes(file.type)) {
+        toast.error(`Invalid file type: ${file.name}. Only JPEG, PNG, and WebP images are allowed.`);
+        return;
+      }
+
+      // Validate file size
+      if (file.size > maxFileSize) {
+        toast.error(`File too large: ${file.name}. Maximum size is 10MB.`);
+        return;
+      }
+
+      validFiles.push(file);
+    });
+
+    if (validFiles.length === 0) {
+      return;
+    }
+
+    // Check total file count
+    if (imagePreviews.length + validFiles.length > maxTotalFiles) {
+      toast.error(`Maximum ${maxTotalFiles} files allowed.`);
+      return;
+    }
+
+    try {
+      // Create preview URLs for validated files
+      const newPreviewUrls = validFiles.map(file => ({
         file: file,
         url: URL.createObjectURL(file)
       }));
@@ -57,17 +93,34 @@ export default function Home() {
       const dt = new DataTransfer();
       updatedPreviews.forEach(preview => dt.items.add(preview.file));
       setFiles(dt.files);
+    } catch (error) {
+      console.error('Error creating file preview:', error);
+      toast.error('Failed to process files. Please try again.');
     }
   };
 
   const handleDeleteImage = (index) => {
-    const newPreviews = imagePreviews.filter((_, i) => i !== index);
-    setImagePreviews(newPreviews);
-    
-    // Convert remaining previews back to a FileList-like object
-    const dt = new DataTransfer();
-    newPreviews.forEach(preview => dt.items.add(preview.file));
-    setFiles(dt.files);
+    try {
+      // Revoke the URL to free memory
+      if (imagePreviews[index]?.url) {
+        URL.revokeObjectURL(imagePreviews[index].url);
+      }
+
+      const newPreviews = imagePreviews.filter((_, i) => i !== index);
+      setImagePreviews(newPreviews);
+      
+      // Convert remaining previews back to a FileList-like object
+      if (newPreviews.length > 0) {
+        const dt = new DataTransfer();
+        newPreviews.forEach(preview => dt.items.add(preview.file));
+        setFiles(dt.files);
+      } else {
+        setFiles(null);
+      }
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      toast.error('Failed to delete image. Please try again.');
+    }
   };
 
   const handleUpload = async () => {
