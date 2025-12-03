@@ -6,8 +6,8 @@ export default function ImagePreviewGrid({ imagePreviews, onDeleteImage }) {
   // Sanitize filename to prevent XSS
   const sanitizeFileName = (name) => {
     if (!name || typeof name !== 'string') return 'Unnamed file';
-    // Remove any HTML tags and limit length
-    return name.replace(/<[^>]*>/g, '').substring(0, 50);
+    // Remove any angle brackets to prevent tag fragments, then limit length
+    return name.replace(/[<>]/g, '').substring(0, 50);
   };
 
   return (
