@@ -1,7 +1,7 @@
-import { MongoClient } from "mongodb";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../auth/[...nextauth]/route.js";
+import { getCollection } from "@/lib/mongodb";
 
 export async function POST(req) {
   try {
@@ -23,9 +23,7 @@ export async function POST(req) {
       );
     }
 
-    const client = await MongoClient.connect(process.env.MONGODB_URI);
-    const db = client.db();
-    const users = db.collection("users");
+    const users = await getCollection("users");
 
     const currentDate = new Date();
     const expiryDate = new Date();
@@ -61,8 +59,6 @@ export async function POST(req) {
       }
     );
 
-    await client.close();
-
     if (result.matchedCount === 0) {
       return NextResponse.json(
         { message: "User not found" },
@@ -83,9 +79,9 @@ export async function POST(req) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Package purchase error:", error);
+    console.error("Package purchase error:", error.message);
     return NextResponse.json(
-      { message: "Internal server error" },
+      { message: "Failed to purchase package" },
       { status: 500 }
     );
   }
@@ -103,16 +99,12 @@ export async function GET(req) {
       );
     }
 
-    const client = await MongoClient.connect(process.env.MONGODB_URI);
-    const db = client.db();
-    const users = db.collection("users");
+    const users = await getCollection("users");
 
     const user = await users.findOne(
       { email: session.user.email },
       { projection: { package: 1, packageHistory: 1 } }
     );
-
-    await client.close();
 
     if (!user) {
       return NextResponse.json(
@@ -144,9 +136,9 @@ export async function GET(req) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Package fetch error:", error);
+    console.error("Package fetch error:", error.message);
     return NextResponse.json(
-      { message: "Internal server error" },
+      { message: "Failed to fetch package details" },
       { status: 500 }
     );
   }

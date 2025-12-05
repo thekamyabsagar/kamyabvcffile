@@ -1,0 +1,83 @@
+# Database Setup Script
+# Run this in MongoDB shell or MongoDB Compass
+
+# Connect to your database
+use vcfextractor
+
+# Create indexes for optimal performance
+
+# Users collection indexes
+db.users.createIndex({ "email": 1 }, { unique: true, name: "email_unique" })
+db.users.createIndex({ "username": 1 }, { unique: true, sparse: true, name: "username_unique" })
+db.users.createIndex({ "createdAt": 1 }, { name: "createdAt_index" })
+db.users.createIndex({ "provider": 1 }, { name: "provider_index" })
+db.users.createIndex({ "isProfileComplete": 1 }, { name: "profile_complete_index" })
+db.users.createIndex({ "package.expiryDate": 1 }, { sparse: true, name: "package_expiry_index" })
+db.users.createIndex({ "package.status": 1 }, { sparse: true, name: "package_status_index" })
+
+# Compound indexes for common queries
+db.users.createIndex({ "email": 1, "provider": 1 }, { name: "email_provider_compound" })
+
+# Add validation schema
+db.runCommand({
+  collMod: "users",
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["email", "createdAt"],
+      properties: {
+        email: {
+          bsonType: "string",
+          pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
+          description: "must be a valid email and is required"
+        },
+        username: {
+          bsonType: "string",
+          pattern: "^[a-zA-Z0-9_]{3,20}$",
+          description: "must be 3-20 characters with alphanumeric and underscore"
+        },
+        password: {
+          bsonType: "string",
+          description: "hashed password"
+        },
+        isProfileComplete: {
+          bsonType: "bool",
+          description: "profile completion status"
+        },
+        createdAt: {
+          bsonType: "date",
+          description: "user creation date"
+        },
+        package: {
+          bsonType: "object",
+          properties: {
+            name: { bsonType: "string" },
+            contactLimit: { bsonType: "int", minimum: 0 },
+            contactsUsed: { bsonType: "int", minimum: 0 },
+            purchaseDate: { bsonType: "date" },
+            expiryDate: { bsonType: "date" },
+            validityDays: { bsonType: "int", minimum: 0 },
+            price: { bsonType: "number", minimum: 0 },
+            status: { 
+              bsonType: "string",
+              enum: ["active", "expired", "exhausted"]
+            }
+          }
+        }
+      }
+    }
+  },
+  validationLevel: "moderate",
+  validationAction: "warn"
+})
+
+# Print index information
+print("Created indexes:")
+db.users.getIndexes()
+
+print("\nDatabase setup complete!")
+print("Remember to:")
+print("1. Enable authentication")
+print("2. Create appropriate user roles")
+print("3. Set up regular backups")
+print("4. Monitor index usage with db.users.aggregate([{$indexStats:{}}])")

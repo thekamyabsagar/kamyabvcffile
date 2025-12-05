@@ -14,9 +14,17 @@ export async function POST(req) {
     }
 
     const { amount, packageName, contactLimit, validityDays } = await req.json();
-    if (!amount || !packageName) {
+    if (!amount || !packageName || !contactLimit || !validityDays) {
       return NextResponse.json(
-        { message: "Amount and package name are required" },
+        { message: "Amount, package name, contact limit, and validity days are required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate amount is positive
+    if (amount <= 0) {
+      return NextResponse.json(
+        { message: "Amount must be greater than 0" },
         { status: 400 }
       );
     }
@@ -62,9 +70,9 @@ export async function POST(req) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Razorpay order creation error:", error);
+    console.error("Razorpay order creation error:", error.message);
     return NextResponse.json(
-      { message: "Failed to create payment order", error: error.message },
+      { message: "Failed to create payment order" },
       { status: 500 }
     );
   }

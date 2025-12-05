@@ -1,7 +1,7 @@
-import { MongoClient } from "mongodb";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../auth/[...nextauth]/route.js";
+import { getCollection } from "@/lib/mongodb";
 
 export async function GET(req) {
   try {
@@ -14,16 +14,12 @@ export async function GET(req) {
       );
     }
 
-    const client = await MongoClient.connect(process.env.MONGODB_URI);
-    const db = client.db();
-    const users = db.collection("users");
+    const users = await getCollection("users");
 
     const user = await users.findOne(
       { email: session.user.email },
       { projection: { password: 0 } } // Exclude password from response
     );
-
-    await client.close();
 
     if (!user) {
       return NextResponse.json(
@@ -34,9 +30,9 @@ export async function GET(req) {
 
     return NextResponse.json(user, { status: 200 });
   } catch (error) {
-    console.error("Profile fetch error:", error);
+    console.error("Profile fetch error:", error.message);
     return NextResponse.json(
-      { message: "Internal server error" },
+      { message: "Failed to fetch profile" },
       { status: 500 }
     );
   }
@@ -62,9 +58,16 @@ export async function PUT(req) {
       );
     }
 
-    const client = await MongoClient.connect(process.env.MONGODB_URI);
-    const db = client.db();
-    const users = db.collection("users");
+    // Validate username
+    const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+    if (!usernameRegex.test(username)) {
+      return NextResponse.json(
+        { message: "Username must be 3-20 characters and contain only letters, numbers, and underscores" },
+        { status: 400 }
+      );
+    }
+
+    const users = await getCollection("users");
 
     // Check if username is already taken by another user
     const existingUser = await users.findOne({ 
@@ -73,7 +76,6 @@ export async function PUT(req) {
     });
     
     if (existingUser) {
-      await client.close();
       return NextResponse.json(
         { message: "Username already taken" },
         { status: 409 }
@@ -95,8 +97,6 @@ export async function PUT(req) {
       }
     );
 
-    await client.close();
-
     if (result.matchedCount === 0) {
       return NextResponse.json(
         { message: "User not found" },
@@ -109,9 +109,9 @@ export async function PUT(req) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Profile update error:", error);
+    console.error("Profile update error:", error.message);
     return NextResponse.json(
-      { message: "Internal server error" },
+      { message: "Failed to update profile" },
       { status: 500 }
     );
   }

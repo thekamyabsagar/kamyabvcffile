@@ -1,17 +1,17 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
-import { MongoClient } from "mongodb";
 import { compare } from "bcryptjs";
+import { getCollection } from "@/lib/mongodb";
 
-// Function to generate a random secret if none is provided
-const generateSecret = () => {
-  if (process.env.NEXTAUTH_SECRET) return process.env.NEXTAUTH_SECRET;
-  const randomBytes = require('crypto').randomBytes(32);
-  return randomBytes.toString('base64');
-};
+// Validate required environment variables
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error('NEXTAUTH_SECRET is required. Generate one with: openssl rand -base64 32');
+}
 
-const secret = process.env.NEXTAUTH_SECRET || "your-secret-key-here-generate-with-openssl-rand-base64-32";
+if (!process.env.MONGODB_URI) {
+  throw new Error('MONGODB_URI is required');
+}
 
 export const authOptions = {
   providers: [
@@ -22,33 +22,44 @@ export const authOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
+        // Validate input
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error("Email and password are required");
+        }
+
+        // Basic email format validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(credentials.email)) {
+          throw new Error("Invalid email format");
+        }
+
         try {
-          const client = await MongoClient.connect(process.env.MONGODB_URI);
-          const users = client.db().collection("users");
+          const users = await getCollection("users");
           
           const user = await users.findOne({ email: credentials.email });
           if (!user) {
-            throw new Error("No user found with this email");
+            throw new Error("Invalid credentials");
+          }
+
+          // Verify user has a password (not OAuth-only account)
+          if (!user.password) {
+            throw new Error("Please sign in with Google");
           }
 
           const isValid = await compare(credentials.password, user.password);
           if (!isValid) {
-            throw new Error("Invalid password");
+            throw new Error("Invalid credentials");
           }
 
-          await client.close();
           return { 
             id: user._id.toString(), 
             email: user.email,
-            username: user.username,
-            country: user.country,
-            phoneNumber: user.phoneNumber,
-            companyName: user.companyName,
-            isProfileComplete: user.isProfileComplete || true
+            username: user.username || null,
+            isProfileComplete: Boolean(user.isProfileComplete)
           };
         } catch (error) {
-          console.error("Auth error:", error);
-          throw error;
+          console.error("Auth error:", error.message);
+          throw new Error("Invalid credentials");
         }
       },
     }),
@@ -64,92 +75,67 @@ export const authOptions = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  secret: secret,
+  secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account }) {
       if (account.provider === "google") {
         try {
-          const client = await MongoClient.connect(process.env.MONGODB_URI);
-          const users = client.db().collection("users");
+          const users = await getCollection("users");
           
-          const existingUser = await users.findOne({ email: user.email });
-          
-          if (!existingUser) {
-            // Create user record for Google OAuth user without profile completion
-            await users.insertOne({
-              email: user.email,
-              name: user.name,
-              image: user.image,
-              provider: "google",
-              isProfileComplete: false,
-              createdAt: new Date(),
-            });
-          }
-          
-          await client.close();
+          // Use upsert pattern to create user if doesn't exist
+          await users.updateOne(
+            { email: user.email },
+            {
+              $setOnInsert: {
+                email: user.email,
+                name: user.name,
+                image: user.image,
+                provider: "google",
+                isProfileComplete: false,
+                createdAt: new Date(),
+              }
+            },
+            { upsert: true }
+          );
         } catch (error) {
-          console.error("Error handling Google sign in:", error);
+          console.error("Error handling Google sign in:", error.message);
+          return false;
         }
       }
       return true;
     },
     async redirect({ url, baseUrl }) {
-      // Check if user needs to complete profile after Google OAuth
-      if (url === baseUrl || url === `${baseUrl}/`) {
-        try {
-          const client = await MongoClient.connect(process.env.MONGODB_URI);
-          const users = client.db().collection("users");
-          
-          // This is a bit tricky - we need the user's email, but it's not available in redirect callback
-          // We'll handle this in the session callback instead
-          await client.close();
-        } catch (error) {
-          console.error("Error in redirect callback:", error);
-        }
-      }
-      
       // Allows relative callback URLs
       if (url.startsWith("/")) return `${baseUrl}${url}`;
       // Allows callback URLs on the same origin
       else if (new URL(url).origin === baseUrl) return url;
       return baseUrl;
     },
-    async session({ session, token, trigger, newSession }) {
-      // Handle session updates (when update() is called from client)
-      if (trigger === "update" && newSession?.user) {
-        session.user = { ...session.user, ...newSession.user };
-        return session;
-      }
-      
-      if (session?.user?.email) {
-        try {
-          const client = await MongoClient.connect(process.env.MONGODB_URI);
-          const users = client.db().collection("users");
-          
-          const user = await users.findOne({ email: session.user.email });
-          if (user) {
-            session.user.isProfileComplete = user.isProfileComplete || false;
-            session.user.username = user.username;
-            session.user.country = user.country;
-            session.user.phoneNumber = user.phoneNumber;
-            session.user.companyName = user.companyName;
-          }
-          
-          await client.close();
-        } catch (error) {
-          console.error("Error in session callback:", error);
-        }
+    async session({ session, token }) {
+      // Only include minimal necessary data in session
+      if (session?.user && token?.sub) {
+        session.user.id = token.sub;
+        session.user.isProfileComplete = Boolean(token.isProfileComplete);
       }
       return session;
     },
-    async jwt({ token, account, user, trigger, session }) {
-      if (account) {
-        token.provider = account.provider;
+    async jwt({ token, user, trigger, session }) {
+      // On initial sign in, add user data to token
+      if (user) {
+        token.isProfileComplete = Boolean(user.isProfileComplete);
+        token.username = user.username || null;
       }
-      // Handle session updates
+      
+      // Handle session updates from client
       if (trigger === "update" && session?.user) {
-        token = { ...token, ...session.user };
+        if (session.user.isProfileComplete !== undefined) {
+          token.isProfileComplete = Boolean(session.user.isProfileComplete);
+        }
+        if (session.user.username !== undefined) {
+          token.username = session.user.username;
+        }
       }
+      
       return token;
     },
   },

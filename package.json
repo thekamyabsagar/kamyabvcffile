@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
-    "start": "next start"
+    "start": "next start",
+    "validate": "node -e \"require('./src/lib/validateEnv.js').validateEnv()\""
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

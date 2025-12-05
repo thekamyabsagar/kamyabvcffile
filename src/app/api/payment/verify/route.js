@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../auth/[...nextauth]/route.js";
 import crypto from "crypto";
+import { getCollection } from "@/lib/mongodb";
 
 export async function POST(req) {
   try {
@@ -21,6 +22,14 @@ export async function POST(req) {
       packageDetails,
     } = await req.json();
 
+    // Validate required fields
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !packageDetails) {
+      return NextResponse.json(
+        { message: "Missing required payment verification data" },
+        { status: 400 }
+      );
+    }
+
     // Verify payment signature
     const sign = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSign = crypto
@@ -36,10 +45,7 @@ export async function POST(req) {
     }
 
     // Payment verified successfully, now update user package
-    const { MongoClient } = await import("mongodb");
-    const client = await MongoClient.connect(process.env.MONGODB_URI);
-    const db = client.db();
-    const users = db.collection("users");
+    const users = await getCollection("users");
 
     const currentDate = new Date();
     const expiryDate = new Date();
@@ -80,8 +86,6 @@ export async function POST(req) {
       }
     );
 
-    await client.close();
-
     if (result.matchedCount === 0) {
       return NextResponse.json(
         { message: "User not found" },
@@ -97,9 +101,9 @@ export async function POST(req) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Payment verification error:", error);
+    console.error("Payment verification error:", error.message);
     return NextResponse.json(
-      { message: "Payment verification failed", error: error.message },
+      { message: "Payment verification failed" },
       { status: 500 }
     );
   }

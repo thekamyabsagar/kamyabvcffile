@@ -1,7 +1,7 @@
-import { MongoClient } from "mongodb";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../auth/[...nextauth]/route.js";
+import { getCollection } from "@/lib/mongodb";
 
 export async function POST(req) {
   try {
@@ -23,6 +23,14 @@ export async function POST(req) {
       );
     }
 
+    // Validate imageCount is a positive number
+    if (imageCount <= 0 || !Number.isInteger(imageCount)) {
+      return NextResponse.json(
+        { message: "Image count must be a positive integer" },
+        { status: 400 }
+      );
+    }
+
     // Calculate contacts used based on card type
     // Single-sided: 1 image = 1 contact
     // Double-sided: 2 images = 1 contact
@@ -38,9 +46,7 @@ export async function POST(req) {
       );
     }
 
-    const client = await MongoClient.connect(process.env.MONGODB_URI);
-    const db = client.db();
-    const users = db.collection("users");
+    const users = await getCollection("users");
 
     // Get current user package info
     const user = await users.findOne(
@@ -49,7 +55,6 @@ export async function POST(req) {
     );
 
     if (!user) {
-      await client.close();
       return NextResponse.json(
         { message: "User not found" },
         { status: 404 }
@@ -58,7 +63,6 @@ export async function POST(req) {
 
     // Check if user has an active package
     if (!user.package) {
-      await client.close();
       return NextResponse.json(
         { message: "No active package found. Please select a package first." },
         { status: 403 }
@@ -69,7 +73,6 @@ export async function POST(req) {
     const now = new Date();
     const expiryDate = new Date(user.package.expiryDate);
     if (now > expiryDate) {
-      await client.close();
       return NextResponse.json(
         { message: "Your package has expired. Please purchase a new package." },
         { status: 403 }
@@ -82,7 +85,6 @@ export async function POST(req) {
     const contactsRemaining = contactLimit - contactsUsed;
 
     if (contactsToAdd > contactsRemaining) {
-      await client.close();
       return NextResponse.json(
         { 
           message: `Insufficient contacts. You need ${contactsToAdd} contacts but only have ${contactsRemaining} remaining.`,
@@ -106,8 +108,6 @@ export async function POST(req) {
       }
     );
 
-    await client.close();
-
     if (result.matchedCount === 0) {
       return NextResponse.json(
         { message: "Failed to update contact usage" },
@@ -129,9 +129,9 @@ export async function POST(req) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Contact usage error:", error);
+    console.error("Contact usage error:", error.message);
     return NextResponse.json(
-      { message: "Internal server error" },
+      { message: "Failed to update contact usage" },
       { status: 500 }
     );
   }
@@ -149,16 +149,12 @@ export async function GET(req) {
       );
     }
 
-    const client = await MongoClient.connect(process.env.MONGODB_URI);
-    const db = client.db();
-    const users = db.collection("users");
+    const users = await getCollection("users");
 
     const user = await users.findOne(
       { email: session.user.email },
       { projection: { package: 1 } }
     );
-
-    await client.close();
 
     if (!user || !user.package) {
       return NextResponse.json(
@@ -207,9 +203,9 @@ export async function GET(req) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Contact usage fetch error:", error);
+    console.error("Contact usage fetch error:", error.message);
     return NextResponse.json(
-      { message: "Internal server error" },
+      { message: "Failed to fetch contact usage" },
       { status: 500 }
     );
   }

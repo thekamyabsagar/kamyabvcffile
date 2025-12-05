@@ -1,11 +1,12 @@
-import { MongoClient } from "mongodb";
 import { hash } from "bcryptjs";
 import { NextResponse } from "next/server";
+import { getCollection } from "@/lib/mongodb";
 
 export async function POST(req) {
   try {
     const { email, password, username, country, phoneNumber, companyName } = await req.json();
     
+    // Validate all required fields
     if (!email || !password || !username || !country || !phoneNumber || !companyName) {
       return NextResponse.json(
         { message: "All fields are required: email, password, username, country, phone number, and company name" },
@@ -13,16 +14,39 @@ export async function POST(req) {
       );
     }
 
-    const client = await MongoClient.connect(process.env.MONGODB_URI);
-    const db = client.db();
-    const users = db.collection("users");
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { message: "Invalid email format" },
+        { status: 400 }
+      );
+    }
+
+    // Validate password strength (min 6 chars)
+    if (password.length < 6) {
+      return NextResponse.json(
+        { message: "Password must be at least 6 characters long" },
+        { status: 400 }
+      );
+    }
+
+    // Validate username (alphanumeric and underscore only)
+    const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+    if (!usernameRegex.test(username)) {
+      return NextResponse.json(
+        { message: "Username must be 3-20 characters and contain only letters, numbers, and underscores" },
+        { status: 400 }
+      );
+    }
+
+    const users = await getCollection("users");
 
     // Check if user already exists
     const existingUser = await users.findOne({ 
       $or: [{ email }, { username }] 
     });
     if (existingUser) {
-      await client.close();
       const message = existingUser.email === email ? "User with this email already exists" : "Username already taken";
       return NextResponse.json(
         { message },
@@ -46,15 +70,14 @@ export async function POST(req) {
       createdAt: currentDate,
     });
 
-    await client.close();
     return NextResponse.json(
       { message: "User created successfully" },
       { status: 201 }
     );
   } catch (error) {
-    console.error("Signup error:", error);
+    console.error("Signup error:", error.message);
     return NextResponse.json(
-      { message: "Internal server error" },
+      { message: "Failed to create user" },
       { status: 500 }
     );
   }
