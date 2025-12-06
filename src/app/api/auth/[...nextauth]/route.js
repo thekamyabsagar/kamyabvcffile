@@ -126,6 +126,21 @@ export const authOptions = {
         token.username = user.username || null;
       }
       
+      // Fetch fresh user data from database on each request to ensure profile status is up to date
+      if (token?.email) {
+        try {
+          const users = await getCollection("users");
+          const dbUser = await users.findOne({ email: token.email });
+          
+          if (dbUser) {
+            token.isProfileComplete = Boolean(dbUser.isProfileComplete);
+            token.username = dbUser.username || null;
+          }
+        } catch (error) {
+          console.error("Error fetching user data in JWT callback:", error.message);
+        }
+      }
+      
       // Handle session updates from client
       if (trigger === "update" && session?.user) {
         if (session.user.isProfileComplete !== undefined) {

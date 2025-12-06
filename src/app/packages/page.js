@@ -6,6 +6,7 @@ import PackageCard from "../components/PackageCard";
 import { useRazorpay, initiatePayment } from "../utils/razorpay";
 import toast from "react-hot-toast";
 import Loader from "../components/Loader";
+import Footer from "../components/Footer";
 
 function PackagesContent() {
   const { data: session, status } = useSession();
@@ -218,7 +219,7 @@ function PackagesContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-100 py-10">
+    <div className="min-h-screen bg-white pt-[60px]">
       <div className="max-w-6xl mx-auto px-4">
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
@@ -263,7 +264,7 @@ function PackagesContent() {
         </div>
 
         {/* Free Trial Notice */}
-        <div className="mt-12 text-center bg-white p-6 rounded-xl shadow-lg max-w-2xl mx-auto">
+        <div className="mt-12 mb-12 text-center bg-white p-6 rounded-xl shadow-lg max-w-2xl mx-auto">
           <h3 className="text-xl font-bold text-gray-800 mb-2">
             {isNewUser ? "🎉 Free Trial Included!" : "New User Bonus!"}
           </h3>
@@ -284,6 +285,7 @@ function PackagesContent() {
           )}
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

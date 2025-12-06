@@ -1,12 +1,3 @@
-# Database Setup Script
-# Run this in MongoDB shell or MongoDB Compass
-
-# Connect to your database
-use vcfextractor
-
-# Create indexes for optimal performance
-
-# Users collection indexes
 db.users.createIndex({ "email": 1 }, { unique: true, name: "email_unique" })
 db.users.createIndex({ "username": 1 }, { unique: true, sparse: true, name: "username_unique" })
 db.users.createIndex({ "createdAt": 1 }, { name: "createdAt_index" })

@@ -8,8 +8,11 @@ import CardTypeToggle from "./components/CardTypeToggle";
 import ImagePreviewGrid from "./components/ImagePreviewGrid";
 import FileUploadInput from "./components/FileUploadInput";
 import SuccessDownload from "./components/SuccessDownload";
-import NavigationBar from "./components/NavigationBar";
 import ConsentDialog from "./components/ConsentDialog";
+import Header from "./components/Header";
+import Features from "./components/Features";
+import HowItWorks from "./components/HowItWorks";
+import Footer from "./components/Footer";
 
 export default function Home() {
   const [files, setFiles] = useState(null);
@@ -139,28 +142,6 @@ export default function Home() {
     setOutputUrl(null);
 
     try {
-      // First, check if user is logged in and has enough contacts
-      if (status === "authenticated") {
-        const contactCheckResponse = await fetch("/api/contacts/usage", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            imageCount: files.length,
-            cardType: cardType
-          }),
-        });
-
-        const contactCheckData = await contactCheckResponse.json();
-
-        if (!contactCheckResponse.ok) {
-          toast.error(contactCheckData.message || "Contact limit exceeded!");
-          setLoading(false);
-          return;
-        }       
-        // Refresh contact info after successful usage
-        await fetchContactInfo();
-      }
-
       const formData = new FormData();
       for (let i = 0; i < files.length; i++) {
         formData.append("files", files[i]); // "files" key matches your n8n webhook input
@@ -191,10 +172,33 @@ export default function Home() {
         // Check if it's an error response
         if (jsonData.error || (Array.isArray(jsonData) && jsonData[0]?.error)) {
           toast.error("Please provide a valid visiting card photo!");
+          setLoading(false);
           return;
         }
       } catch (e) {
         // Not JSON, it's a VCF file - this is expected
+      }
+
+      // Only count the contacts AFTER successful VCF conversion
+      if (status === "authenticated") {
+        const contactCheckResponse = await fetch("/api/contacts/usage", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageCount: files.length,
+            cardType: cardType
+          }),
+        });
+
+        const contactCheckData = await contactCheckResponse.json();
+
+        if (!contactCheckResponse.ok) {
+          toast.error(contactCheckData.message || "Contact limit exceeded!");
+          setLoading(false);
+          return;
+        }       
+        // Refresh contact info after successful usage
+        await fetchContactInfo();
       }
 
       // Create blob from response and set download URL
@@ -221,9 +225,18 @@ export default function Home() {
   };
 
   return (
-    <main className="flex flex-col items-center min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-100 p-6 relative">
-      <NavigationBar />
-
+    <main className="flex flex-col items-center min-h-screen bg-white">
+      <Header />
+      
+      {/* Contact Counter - Only show for authenticated users with active package */}
+      {status === "authenticated" && contactInfo && contactInfo.status === "active" && (
+        <div className="mt-4 px-6 py-2 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-full shadow-sm">
+          <p className="text-sm font-semibold text-indigo-700">
+            Contacts: <span className="text-indigo-900">{contactInfo.contactsUsed || 0}</span> / <span className="text-indigo-900">{contactInfo.contactLimit || 0}</span>
+          </p>
+        </div>
+      )}
+      
       <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center border border-gray-100 mt-12">
         <h1 className="text-3xl font-bold mb-6 text-gray-800 tracking-tight text-center drop-shadow-sm">
           Kamyab VCF Converter
@@ -320,9 +333,14 @@ export default function Home() {
         )}
       </div>
       
-      <footer className="mt-10 text-xs text-gray-400 text-center">
-        &copy; {new Date().getFullYear()} Kamyab VCF Converter. All rights reserved.
-      </footer>
+      {/* Features Section */}
+      <Features />
+
+      {/* How It Works Section */}
+      <HowItWorks />
+
+      {/* Footer */}
+      <Footer />
 
       {/* Consent Dialog */}
       <ConsentDialog

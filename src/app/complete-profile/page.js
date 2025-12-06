@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Loader from "../components/Loader";
+import Footer from "../components/Footer";
 
 export default function CompleteProfile() {
   const [username, setUsername] = useState("");
@@ -185,6 +186,7 @@ export default function CompleteProfile() {
           </div>
         </form>
       </div>
+      <Footer />
     </div>
   );
 }
