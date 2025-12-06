@@ -6,7 +6,6 @@ import Logo from "./Logo";
 
 const Header = () => {
   const { data: session, status } = useSession();
-  const loading = status === "loading";
 
   const handleSmoothScroll = (e, targetId) => {
     e.preventDefault();
@@ -37,23 +36,22 @@ const Header = () => {
           >
             How It Works
           </a>
-          {!loading && (
-            <>
-              {session?.user ? (
-                <Link href="/profile">
-                  <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-all duration-200 shadow-sm">
-                    <CiUser className="w-4 h-4" />
-                    Profile
-                  </button>
-                </Link>
-              ) : (
-                <Link href="/login">
-                  <button className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl">
-                    Sign In
-                  </button>
-                </Link>
-              )}
-            </>
+          {/* Optimized: Render placeholder immediately, then actual button */}
+          {status === "loading" ? (
+            <div className="w-[100px] h-[40px] bg-slate-100 rounded-lg animate-pulse" />
+          ) : session?.user ? (
+            <Link href="/profile">
+              <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-all duration-200 shadow-sm">
+                <CiUser className="w-4 h-4" />
+                Profile
+              </button>
+            </Link>
+          ) : (
+            <Link href="/login">
+              <button className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl">
+                Sign In
+              </button>
+            </Link>
           )}
         </nav>
       </div>

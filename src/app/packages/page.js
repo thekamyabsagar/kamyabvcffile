@@ -7,6 +7,9 @@ import { useRazorpay, initiatePayment } from "../utils/razorpay";
 import toast from "react-hot-toast";
 import Loader from "../components/Loader";
 import Footer from "../components/Footer";
+import PackagesPageHeader from "../components/PackagesPageHeader";
+import FreeTrialNotice from "../components/FreeTrialNotice";
+import AlertMessage from "../components/AlertMessage";
 
 function PackagesContent() {
   const { data: session, status } = useSession();
@@ -32,6 +35,8 @@ function PackagesContent() {
       checkUserPackageStatus();
     } else if (status === "unauthenticated") {
       setIsCheckingPackage(false);
+    } else if (status === "loading") {
+      setIsCheckingPackage(true);
     }
   }, [status, router]);
 
@@ -209,10 +214,10 @@ function PackagesContent() {
   // Show loader while checking package status
   if (status === "loading" || isCheckingPackage) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-100 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <Loader size="12" />
-          <p className="text-gray-600 mt-4">Loading packages...</p>
+          <p className="text-slate-600 mt-4">Loading packages...</p>
         </div>
       </div>
     );
@@ -221,30 +226,11 @@ function PackagesContent() {
   return (
     <div className="min-h-screen bg-white pt-[60px]">
       <div className="max-w-6xl mx-auto px-4">
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-            {isNewUser ? "Welcome! Choose Your Package" : "Choose Your Package"}
-          </h1>
-          <p className="text-gray-600 text-lg">
-            {isNewUser 
-              ? "Select a plan to get started, or skip to use the free trial with 100 contacts for 30 days!"
-              : "Select the perfect plan for your needs. New users get 30 days free trial!"
-            }
-          </p>
-        </div>
+        <PackagesPageHeader isNewUser={isNewUser} />
 
         {/* Success/Error Messages */}
-        {error && (
-          <div className="mb-6 p-4 text-center text-red-600 bg-red-50 rounded-lg border border-red-200 max-w-2xl mx-auto">
-            {error}
-          </div>
-        )}
-        
-        {success && (
-          <div className="mb-6 p-4 text-center text-green-600 bg-green-50 rounded-lg border border-green-200 max-w-2xl mx-auto">
-            {success}
-          </div>
-        )}
+        <AlertMessage type="error" message={error} />
+        <AlertMessage type="success" message={success} />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {packages.map((p, i) => {
@@ -264,26 +250,11 @@ function PackagesContent() {
         </div>
 
         {/* Free Trial Notice */}
-        <div className="mt-12 mb-12 text-center bg-white p-6 rounded-xl shadow-lg max-w-2xl mx-auto">
-          <h3 className="text-xl font-bold text-gray-800 mb-2">
-            {isNewUser ? "🎉 Free Trial Included!" : "New User Bonus!"}
-          </h3>
-          <p className="text-gray-600 mb-4">
-            {isNewUser
-              ? "Not ready to buy? No problem! Get started with our free trial - 100 contacts for 30 days, absolutely free!"
-              : "All new users automatically receive a 30-day free trial with 100 contacts upon registration!"
-            }
-          </p>
-          {isNewUser && (
-            <button
-              onClick={handleSkip}
-              disabled={isLoading}
-              className="mt-2 px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition-all duration-200 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? "Activating..." : "Skip & Start with Free Trial"}
-            </button>
-          )}
-        </div>
+        <FreeTrialNotice 
+          isNewUser={isNewUser}
+          isLoading={isLoading}
+          onSkip={handleSkip}
+        />
       </div>
       <Footer />
     </div>
@@ -293,10 +264,10 @@ function PackagesContent() {
 export default function PackagesPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-100 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading packages...</p>
+          <Loader size="12" />
+          <p className="text-slate-600 mt-4">Loading packages...</p>
         </div>
       </div>
     }>

@@ -13,6 +13,9 @@ import Header from "./components/Header";
 import Features from "./components/Features";
 import HowItWorks from "./components/HowItWorks";
 import Footer from "./components/Footer";
+import ContactCounter from "./components/ContactCounter";
+import { ExhaustedWarning, ExpiredWarning, NoPackageWarning } from "./components/PackageWarnings";
+import Loader from "./components/Loader";
 
 export default function Home() {
   const [files, setFiles] = useState(null);
@@ -22,13 +25,25 @@ export default function Home() {
   const [cardType, setCardType] = useState("single");
   const [showConsent, setShowConsent] = useState(false);
   const [contactInfo, setContactInfo] = useState(null);
+  const [isPageLoading, setIsPageLoading] = useState(true);
   const { data: session, status } = useSession();
   const router = useRouter();
+  
   // Fetch contact info when user is authenticated
   useEffect(() => {
-    if (status === "authenticated") {
-      fetchContactInfo();
-    }
+    const loadPageData = async () => {
+      setIsPageLoading(true);
+      
+      if (status === "authenticated") {
+        await fetchContactInfo();
+      } else if (status === "unauthenticated") {
+        // No need to fetch, just mark as loaded
+        setIsPageLoading(false);
+      }
+      // Keep loading if status is still "loading"
+    };
+    
+    loadPageData();
   }, [status]);
 
   const fetchContactInfo = async () => {
@@ -40,6 +55,8 @@ export default function Home() {
       }
     } catch (error) {
       console.error("Failed to fetch contact info:", error);
+    } finally {
+      setIsPageLoading(false);
     }
   };
 
@@ -224,17 +241,28 @@ export default function Home() {
     }
   };
 
+  // Show loader while page data is loading
+  if (isPageLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-white">
+        <div className="text-center">
+          <Loader size="12" />
+          <p className="text-slate-600 mt-4">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <main className="flex flex-col items-center min-h-screen bg-white">
       <Header />
       
       {/* Contact Counter - Only show for authenticated users with active package */}
       {status === "authenticated" && contactInfo && contactInfo.status === "active" && (
-        <div className="mt-4 px-6 py-2 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-full shadow-sm">
-          <p className="text-sm font-semibold text-indigo-700">
-            Contacts: <span className="text-indigo-900">{contactInfo.contactsUsed || 0}</span> / <span className="text-indigo-900">{contactInfo.contactLimit || 0}</span>
-          </p>
-        </div>
+        <ContactCounter 
+          contactsUsed={contactInfo.contactsUsed} 
+          contactLimit={contactInfo.contactLimit} 
+        />
       )}
       
       <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center border border-gray-100 mt-12">
@@ -247,47 +275,17 @@ export default function Home() {
 
         {/* Exhausted Contacts Warning */}
         {status === "authenticated" && contactInfo?.isExhausted && !contactInfo?.isExpired && !loading && (
-          <div className="w-full mb-4 p-4 bg-orange-50 rounded-lg border border-orange-200">
-            <p className="text-sm text-orange-700 text-center font-semibold mb-2">
-              ⚠️ Contact limit exhausted! Please upgrade your package to continue.
-            </p>
-            <button
-              onClick={() => window.location.href = "/packages?upgrade=true"}
-              className="w-full py-2 px-4 bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold rounded-lg hover:from-orange-600 hover:to-red-600 transition-all duration-200 text-sm"
-            >
-              Upgrade Package
-            </button>
-          </div>
+          <ExhaustedWarning />
         )}
 
         {/* Expired Package Warning */}
         {status === "authenticated" && contactInfo?.isExpired && !loading && (
-          <div className="w-full mb-4 p-4 bg-red-50 rounded-lg border border-red-200">
-            <p className="text-sm text-red-600 text-center font-semibold mb-2">
-              Your package has expired. Please purchase a new package to continue.
-            </p>
-            <button
-              onClick={() => window.location.href = "/packages"}
-              className="w-full py-2 px-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 text-sm"
-            >
-              Renew Package
-            </button>
-          </div>
+          <ExpiredWarning />
         )}
 
         {/* No Package Warning */}
         {status === "authenticated" && contactInfo?.status === "no-package" && !loading && (
-          <div className="w-full mb-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-            <p className="text-sm text-yellow-700 text-center font-semibold mb-3">
-              ⚠️ No active package found. Please select a package to continue.
-            </p>
-            <button
-              onClick={() => router.push("/packages")}
-              className="w-full py-2 px-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 text-sm"
-            >
-              View Packages
-            </button>
-          </div>
+          <NoPackageWarning />
         )}
 
         {/* Show upload progress when loading */}
